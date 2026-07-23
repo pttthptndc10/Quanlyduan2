@@ -47,15 +47,14 @@
             <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="email" name="email"
-                    value="{{ invitation.email }}"
-                    readonly
-                    style="opacity:.6;cursor:not-allowed">
+                    value="{% if invitation %}{{ invitation.email }}{% else %}{{ email|default:'' }}{% endif %}"
+                    {% if invitation %}readonly style="opacity:.6;cursor:not-allowed"{% else %}placeholder="your@gmail.com"{% endif %} required>
             </div>
 
             <div class="form-group">
                 <label for="full_name">Họ và tên</label>
                 <input type="text" id="full_name" name="full_name"
-                    value="{{ invitation.full_name|default:full_name|default:'' }}"
+                    value="{% if invitation %}{{ invitation.full_name }}{% else %}{{ full_name|default:'' }}{% endif %}"
                     placeholder="Nguyễn Văn A" required>
                 {% if errors.full_name %}
                 <span class="field-err">{{ errors.full_name }}</span>
