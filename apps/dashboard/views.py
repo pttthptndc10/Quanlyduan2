@@ -1,55 +1,77 @@
 """
-Dashboard Views — Trang tổng quan hệ thống.
-Hiển thị thống kê: projects, tasks, members.
+Dashboard Views — Trang tổng quan với Django ORM.
 """
 
+from datetime import date
 from django.shortcuts import render
-from apps.authentication.services.supabase_client import get_admin_supabase_client
-from core.utils import get_user_from_session
+from apps.projects.models import Project
+from apps.tasks.models import Task
+from apps.authentication.models import Profile
+from core.utils import get_user_from_session, TASK_STATUS_LABELS
 
 
 def dashboard_view(request):
     user = get_user_from_session(request)
-    db = get_admin_supabase_client(request)
+    user_id = user['id']
+    today = date.today().isoformat()
 
-    # Lấy thống kê tổng quan
-    try:
-        projects = db.table('projects').select('id, status').execute().data or []
-        tasks    = db.table('tasks').select('id, status, deadline').execute().data or []
-        members  = db.table('profiles').select('id, status').eq('status', 'active').execute().data or []
+    projects = Project.objects.all().order_by('-updated_at')
+    tasks = Task.objects.all().select_related('project', 'assignee__profile')
 
-        from datetime import date
-        today = date.today().isoformat()
+    my_tasks = tasks.filter(assignee_id=user_id).order_by('-created_at')[:5]
 
-        stats = {
-            'total_projects':  len(projects),
-            'active_projects': sum(1 for p in projects if p['status'] == 'in_progress'),
-            'total_tasks':     len(tasks),
-            'done_tasks':      sum(1 for t in tasks if t['status'] == 'done'),
-            'overdue_tasks':   sum(1 for t in tasks if t.get('deadline') and t['deadline'] < today and t['status'] not in ('done', 'cancelled')),
-            'blocked_tasks':   sum(1 for t in tasks if t['status'] == 'blocked'),
-            'total_members':   len(members),
+    total_projects = projects.count()
+    active_projects = projects.filter(status='in_progress').count()
+    total_tasks = tasks.count()
+    done_tasks = tasks.filter(status='done').count()
+    overdue_tasks = sum(1 for t in tasks if t.deadline and t.deadline.isoformat() < today and t.status not in ('done', 'cancelled'))
+    blocked_tasks = tasks.filter(status='blocked').count()
+
+    total_members = Profile.objects.filter(status='active').count()
+
+    # Format my tasks for template
+    my_tasks_data = [
+        {
+            'id': t.id,
+            'title': t.title,
+            'status': t.status,
+            'priority': t.priority,
+            'progress': t.progress,
+            'deadline': t.deadline.isoformat() if t.deadline else None,
+            'projects': {'name': t.project.name} if t.project else None,
         }
+        for t in my_tasks
+    ]
 
-        # 5 task gần nhất được giao cho mình
-        my_tasks = db.table('tasks').select('id, title, status, priority, deadline, project_id') \
-            .eq('assignee_id', user['id']) \
-            .neq('status', 'done').neq('status', 'cancelled') \
-            .order('created_at', desc=True).limit(5).execute().data or []
+    # Format recent projects for template
+    recent_projects_data = []
+    for p in projects[:6]:
+        ptasks = p.tasks.all()
+        pdone = ptasks.filter(status='done').count()
+        ptotal = ptasks.count()
+        recent_projects_data.append({
+            'id': p.id,
+            'name': p.name,
+            'status': p.status,
+            'done_count': pdone,
+            'task_count': ptotal,
+        })
 
-        # 5 project gần nhất
-        recent_projects = db.table('projects').select('id, name, status, priority, deadline') \
-            .order('updated_at', desc=True).limit(5).execute().data or []
-
-    except Exception as e:
-        stats = {'total_projects': 0, 'active_projects': 0, 'total_tasks': 0,
-                 'done_tasks': 0, 'overdue_tasks': 0, 'blocked_tasks': 0, 'total_members': 0}
-        my_tasks = []
-        recent_projects = []
+    stats = {
+        'total_projects': total_projects,
+        'active_projects': active_projects,
+        'total_tasks': total_tasks,
+        'done_tasks': done_tasks,
+        'overdue_tasks': overdue_tasks,
+        'blocked_tasks': blocked_tasks,
+        'total_members': total_members,
+    }
 
     return render(request, 'dashboard/dashboard.html', {
         'stats': stats,
-        'my_tasks': my_tasks,
-        'recent_projects': recent_projects,
+        'my_tasks': my_tasks_data,
+        'recent_projects': recent_projects_data,
         'user': user,
+        'today': today,
+        'status_labels': TASK_STATUS_LABELS,
     })

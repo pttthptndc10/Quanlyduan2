@@ -1,41 +1,36 @@
 """
-Invitation Service — Quản lý lời mời đăng ký hệ thống.
-Chỉ admin/leader mới được tạo lời mời.
+Invitation Service — Quản lý lời mời đăng ký bằng Django ORM.
 """
 
 import uuid
 from datetime import datetime, timezone, timedelta
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib.auth.models import User
+from apps.authentication.models import Invitation
 
-from .supabase_client import get_admin_supabase_client
 
-
-def create_invitation(email: str, full_name: str, invited_by_id: str) -> dict:
-    """Tạo lời mời mới và gửi email."""
+def create_invitation(email: str, full_name: str, invited_by_id: int) -> dict:
+    """Tạo lời mời mới và lưu local."""
     try:
-        db = get_admin_supabase_client()
         now = datetime.now(timezone.utc)
 
-        # Kiểm tra đã có lời mời chờ chưa
-        existing = db.table('invitations').select('id') \
-            .eq('email', email).eq('used', False) \
-            .gt('expires_at', now.isoformat()).execute()
-
-        if existing.data:
+        existing = Invitation.objects.filter(email=email, used=False, expires_at__gt=now).first()
+        if existing:
             return {'success': False, 'error': f'{email} đã có lời mời đang chờ. Thu hồi trước.'}
 
         token = str(uuid.uuid4())
         expires_at = now + timedelta(hours=24)
+        invited_by = User.objects.filter(id=invited_by_id).first() if invited_by_id else None
 
-        db.table('invitations').insert({
-            'email': email,
-            'full_name': full_name,
-            'token': token,
-            'invited_by': invited_by_id,
-            'used': False,
-            'expires_at': expires_at.isoformat(),
-        }).execute()
+        invitation = Invitation.objects.create(
+            email=email,
+            full_name=full_name,
+            token=token,
+            invited_by=invited_by,
+            used=False,
+            expires_at=expires_at,
+        )
 
         url = f"{settings.APP_BASE_URL}/register/?token={token}"
         _send_invite_email(email, full_name, url)
@@ -47,71 +42,59 @@ def create_invitation(email: str, full_name: str, invited_by_id: str) -> dict:
 
 
 def get_valid_invitation(token: str) -> dict | None:
-    """Lấy lời mời hợp lệ (chưa dùng, chưa hết hạn)."""
+    """Lấy lời mời hợp lệ."""
     try:
-        db = get_admin_supabase_client()
-        res = db.table('invitations').select('*').eq('token', token).eq('used', False).execute()
-
-        if not res.data:
+        now = datetime.now(timezone.utc)
+        inv = Invitation.objects.filter(token=token, used=False, expires_at__gt=now).first()
+        if not inv:
             return None
-
-        inv = res.data[0]
-        exp = datetime.fromisoformat(inv['expires_at'].replace('Z', '+00:00'))
-        if datetime.now(timezone.utc) > exp:
-            return None
-
-        return inv
+        return {
+            'id': inv.id,
+            'email': inv.email,
+            'full_name': inv.full_name,
+            'role': inv.role,
+            'token': inv.token,
+            'expires_at': inv.expires_at.isoformat(),
+        }
     except Exception:
         return None
 
 
-def mark_invitation_used(token: str) -> None:
-    """Đánh dấu lời mời đã sử dụng."""
-    try:
-        db = get_admin_supabase_client()
-        db.table('invitations').update({
-            'used': True,
-            'used_at': datetime.now(timezone.utc).isoformat()
-        }).eq('token', token).execute()
-    except Exception:
-        pass
-
-
 def get_all_invitations() -> list:
-    """Lấy danh sách lời mời gần đây (50 cái mới nhất)."""
+    """Lấy tất cả danh sách lời mời."""
     try:
-        db = get_admin_supabase_client()
-        res = db.table('invitations').select('*').order('created_at', desc=True).limit(50).execute()
-        return res.data or []
+        invs = Invitation.objects.all().order_by('-created_at')[:50]
+        return [
+            {
+                'id': i.id,
+                'email': i.email,
+                'full_name': i.full_name or i.email.split('@')[0],
+                'role': i.role,
+                'used': i.used,
+                'expires_at': i.expires_at.strftime('%Y-%m-%d %H:%M'),
+            }
+            for i in invs
+        ]
     except Exception:
         return []
 
 
-def revoke_invitation(inv_id: str) -> dict:
-    """Thu hồi lời mời chưa dùng."""
+def revoke_invitation(inv_id: int) -> dict:
+    """Thu hồi lời mời."""
     try:
-        db = get_admin_supabase_client()
-        db.table('invitations').update({
-            'used': True,
-            'used_at': datetime.now(timezone.utc).isoformat()
-        }).eq('id', inv_id).eq('used', False).execute()
+        inv = Invitation.objects.filter(id=inv_id, used=False).first()
+        if inv:
+            inv.used = True
+            inv.save()
         return {'success': True}
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
 
 def _send_invite_email(email: str, full_name: str, url: str) -> None:
-    """Gửi email chứa link mời."""
-    app = settings.APP_NAME
-    send_mail(
-        subject=f'[{app}] Bạn được mời tham gia hệ thống',
-        message=(
-            f"Xin chào {full_name},\n\n"
-            f"Bạn được mời tham gia {app}.\n\n"
-            f"Link đăng ký (dùng 1 lần, hết hạn 24h):\n{url}\n\n"
-            f"Trân trọng,\nTeam {app}"
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        fail_silently=False,
-    )
+    subject = "[WebNoiBO] Lời mời tham gia hệ thống quản lý"
+    message = f"Xin chào {full_name},\n\nBạn được mời tham gia WebNoiBO.\nNhấn vào liên kết sau để đăng ký:\n{url}\n\nTrân trọng,\nWebNoiBO Team"
+    try:
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email], fail_silently=True)
+    except Exception:
+        pass

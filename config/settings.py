@@ -16,6 +16,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,.vercel.app').split(',')
 
 INSTALLED_APPS = [
+    'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.staticfiles',
@@ -69,7 +70,7 @@ DATABASES = {
 }
 
 # Session lưu file, không cần DB riêng
-SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_FILE_PATH = BASE_DIR / 'sessions'
 SESSION_COOKIE_AGE = 86400        # 24 giờ
 SESSION_COOKIE_HTTPONLY = True
