@@ -77,3 +77,8 @@ def register(email: str, password: str, full_name: str, invitation_token: str) -
         }
     except Exception as e:
         return {'success': False, 'error': str(e)}
+
+
+def logout(token=None):
+    """Đăng xuất người dùng."""
+    pass

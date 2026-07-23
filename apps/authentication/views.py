@@ -55,7 +55,6 @@ def login_view(request):
 # ─── Đăng xuất ───────────────────────────────────────────────────────────────
 
 def logout_view(request):
-    auth_service.logout(request.session.get('access_token'))
     request.session.flush()
     return redirect('/login/')
 
