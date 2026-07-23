@@ -58,8 +58,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnOtp = document.getElementById('btnSendOtp');
     if (btnOtp) {
         btnOtp.addEventListener('click', async () => {
-            const token = btnOtp.dataset.token;
+            const token = btnOtp.dataset.token || '';
+            const emailInput = document.getElementById('email');
+            const email = emailInput ? emailInput.value.trim() : '';
             const hint  = document.getElementById('otpHint');
+
+            if (!token && !email) {
+                if (hint) {
+                    hint.textContent = '❌ Vui lòng nhập Email';
+                    hint.style.color = '#fca5a5';
+                }
+                return;
+            }
 
             btnOtp.disabled = true;
             btnOtp.textContent = 'Đang gửi…';
@@ -72,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': getCsrfToken(),
                     },
-                    body: JSON.stringify({ token }),
+                    body: JSON.stringify({ token, email }),
                 });
 
                 const data = await res.json();
