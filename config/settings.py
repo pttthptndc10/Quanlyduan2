@@ -11,7 +11,7 @@ load_dotenv(override=True)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-secret-change-in-production')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'webnoibo-production-signed-cookie-secret-key-2026')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['*']
 
@@ -82,12 +82,13 @@ DATABASES = {
     }
 }
 
-# Session lưu file, không cần DB riêng
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_FILE_PATH = BASE_DIR / 'sessions'
-SESSION_COOKIE_AGE = 86400        # 24 giờ
+# Session mã hóa Cookie an toàn (Signed Cookies) — hoạt động tuyệt đối trên Vercel Serverless
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+SESSION_COOKIE_NAME = 'webnoibo_session'
+SESSION_COOKIE_AGE = 86400 * 7
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
