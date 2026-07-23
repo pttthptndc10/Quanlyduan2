@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Công việc — WebNoiBO Workspace{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+{% block page_title %}Công việc{% endblock %}
+
+{% block topbar_actions %}
+<a href="/tasks/create/" class="btn-primary">+ Tạo công việc</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filter tabs -->
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem" id="statusFilter">
+    <button class="btn-secondary ftab active" data-status="" style="font-size:12px;padding:6px 12px">Tất cả</button>
+    <button class="btn-secondary ftab" data-status="todo" style="font-size:12px;padding:6px 12px">Cần làm</button>
+    <button class="btn-secondary ftab" data-status="doing" style="font-size:12px;padding:6px 12px">Đang làm</button>
+    <button class="btn-secondary ftab" data-status="review" style="font-size:12px;padding:6px 12px">Review</button>
+    <button class="btn-secondary ftab" data-status="done" style="font-size:12px;padding:6px 12px">Xong</button>
+    <button class="btn-secondary ftab" data-status="blocked" style="font-size:12px;padding:6px 12px">Bị chặn</button>
+</div>
+
+{% if tasks %}
+<div class="glass-card" style="padding:1rem">
+    <table class="data-table" id="taskTable">
+        <thead>
+            <tr>
+                <th>Tiêu đề</th>
+                <th>Dự án</th>
+                <th>Người thực hiện</th>
+                <th>Trạng thái</th>
+                <th>Ưu tiên</th>
+                <th>Deadline</th>
+                <th>Tiến độ</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for t in tasks %}
+        <tr data-status="{{ t.status }}">
+            <td><a href="/tasks/{{ t.id }}/" style="font-weight:600">{{ t.title }}</a></td>
+            <td style="font-size:12px;color:#94a3b8">{{ t.projects.name|default:"—" }}</td>
+            <td style="font-size:13px">{{ t.assignee_name|default:"—" }}</td>
+            <td>
+                <span class="badge badge-{{ t.status }}">
+                    {% if t.status == 'todo' %}Cần làm
+                    {% elif t.status == 'doing' %}Đang làm
+                    {% elif t.status == 'review' %}Review
+                    {% elif t.status == 'done' %}Xong
+                    {% elif t.status == 'blocked' %}Bị chặn
+                    {% else %}Đã hủy{% endif %}
+                </span>
+            </td>
+            <td><span class="badge badge-{{ t.priority }}">{{ t.priority|upper|slice:":3" }}</span></td>
+            <td style="font-size:12px;color:{% if t.deadline and t.deadline < today and t.status != 'done' %}#fda4af{% else %}#94a3b8{% endif %}">
+                {{ t.deadline|default:"—" }}
+            </td>
+            <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div class="rem-progress-bar" style="width:70px">
+                        <div class="rem-progress-fill" style="width:{{ t.progress }}%"></div>
+                    </div>
+                    <span style="font-size:11px;color:#94a3b8">{{ t.progress }}%</span>
+                </div>
+            </td>
+            <td><a href="/tasks/{{ t.id }}/edit/" style="color:#64748b;font-size:12px;text-decoration:none">✏️ Edit</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="glass-card" style="text-align:center;padding:4rem 1rem;color:#64748b">
+    <div style="font-size:3rem;margin-bottom:1rem">✅</div>
+    <h2 style="color:#e2e8f0;margin-bottom:.5rem">Chưa có công việc nào</h2>
+    <a href="/tasks/create/" class="btn-primary" style="margin-top:1.5rem;display:inline-flex">+ Tạo task đầu tiên</a>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('.ftab').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const status = btn.dataset.status;
+        document.querySelectorAll('#taskTable tbody tr').forEach(row => {
+            row.style.display = (!status || row.dataset.status === status) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}

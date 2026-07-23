@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — WebNoiBO Workspace{% endblock %}
+{% block nav_projects %}active{% endblock %}
+{% block page_title %}{{ project.name }}{% endblock %}
+
+{% block topbar_actions %}
+{% if current_user.role == 'admin' or current_user.role == 'leader' %}
+<a href="/projects/{{ project.id }}/edit/" class="btn-secondary">✏️ Chỉnh sửa</a>
+<form method="post" action="/projects/{{ project.id }}/delete/" style="display:inline">
+    {% csrf_token %}
+    <button type="submit" class="btn-danger" onclick="return confirm('Xóa dự án này?')">🗑 Xóa</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Header Cards: Thông tin & Thành viên -->
+<div class="two-col" style="margin-bottom:1.5rem">
+    <div class="glass-card" style="padding:1.5rem">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+            <span class="badge badge-{{ project.status }}">
+                {% if project.status == 'planning' %}Lên kế hoạch
+                {% elif project.status == 'in_progress' %}Đang thực hiện
+                {% elif project.status == 'review' %}Review
+                {% elif project.status == 'completed' %}Hoàn thành
+                {% elif project.status == 'paused' %}Tạm dừng{% endif %}
+            </span>
+            <span class="badge badge-{{ project.priority }}">{{ project.priority|upper }}</span>
+            {% if project.deadline %}<span style="font-size:12px;color:#94a3b8;margin-left:4px">📅 Deadline: {{ project.deadline }}</span>{% endif %}
+        </div>
+        <p style="color:#cbd5e1;font-size:14px;line-height:1.6">{{ project.description|default:"Không có mô tả" }}</p>
+    </div>
+
+    <!-- Thành viên -->
+    <div class="glass-card" style="padding:1.5rem">
+        <h3 style="font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:1rem">THÀNH VIÊN ({{ members|length }})</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+            {% for m in members %}
+            <a href="/members/{{ m.member_id }}/" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(30,41,59,0.6);border:1px solid rgba(6,182,212,0.3);border-radius:99px;font-size:13px;color:#e2e8f0;text-decoration:none;transition:all .15s" onmouseover="this.style.background='rgba(6,182,212,0.15)'" onmouseout="this.style.background='rgba(30,41,59,0.6)'">
+                <div style="width:22px;height:22px;background:linear-gradient(135deg,#1e3a5f,#0891b2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">
+                    {{ m.profiles.full_name|first|upper }}
+                </div>
+                <span>{{ m.profiles.full_name }}</span>
+            </a>
+            {% empty %}
+            <span style="color:#64748b;font-size:13px">Chưa có thành viên nào</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Task Table Card -->
+<div class="glass-card" style="padding:1.25rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid #1e293b">
+        <h2 style="font-size:1.125rem;font-weight:700;color:#f8fafc">Công việc ({{ tasks|length }})</h2>
+        <a href="/tasks/create/?project={{ project.id }}" class="btn-primary" style="font-size:12px;padding:6px 14px">+ Thêm task</a>
+    </div>
+
+    {% if tasks %}
+    <div style="overflow-x:auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>TIÊU ĐỀ</th>
+                    <th>NGƯỜI THỰC HIỆN</th>
+                    <th>TRẠNG THÁI</th>
+                    <th>ƯU TIÊN</th>
+                    <th>DEADLINE</th>
+                    <th>TIẾN ĐỘ</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in tasks %}
+            <tr>
+                <td><a href="/tasks/{{ t.id }}/" style="font-weight:600;color:#22d3ee">{{ t.title }}</a></td>
+                <td style="font-size:13px;color:#e2e8f0;font-weight:500">{{ t.assignee_name|default:"—" }}</td>
+                <td>
+                    <span class="badge badge-{{ t.status }}">
+                        {% if t.status == 'todo' %}Việc cần làm
+                        {% elif t.status == 'doing' %}Đang làm
+                        {% elif t.status == 'review' %}Review
+                        {% elif t.status == 'done' %}Xong
+                        {% elif t.status == 'blocked' %}Bị chặn
+                        {% else %}Đã hủy{% endif %}
+                    </span>
+                </td>
+                <td><span class="badge badge-{{ t.priority }}">{{ t.priority|upper|slice:":3" }}</span></td>
+                <td style="font-size:12px;color:#94a3b8">{{ t.deadline|default:"—" }}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <div class="rem-progress-bar" style="width:100px">
+                            <div class="rem-progress-fill" style="width:{{ t.progress }}%"></div>
+                        </div>
+                        <span style="font-size:11px;color:#94a3b8">{{ t.progress }}%</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:3rem 1rem;color:#64748b;font-size:13px">
+        Chưa có task nào trong dự án này. <a href="/tasks/create/?project={{ project.id }}" style="color:#22d3ee">Tạo task mới ngay →</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

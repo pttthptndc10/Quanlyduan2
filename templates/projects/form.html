@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} — WebNoiBO{% endblock %}
+{% block nav_projects %}active{% endblock %}
+{% block page_title %}{{ action }}{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    {% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="name">Tên dự án *</label>
+            <input type="text" id="name" name="name" value="{{ project.name|default:'' }}" placeholder="Nhập tên dự án" required>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Mô tả</label>
+            <textarea id="description" name="description" placeholder="Mô tả ngắn về dự án...">{{ project.description|default:'' }}</textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+                <label for="status">Trạng thái</label>
+                <select id="status" name="status">
+                    <option value="planning" {% if project.status == 'planning' %}selected{% endif %}>Lên kế hoạch</option>
+                    <option value="in_progress" {% if project.status == 'in_progress' %}selected{% endif %}>Đang thực hiện</option>
+                    <option value="review" {% if project.status == 'review' %}selected{% endif %}>Đang review</option>
+                    <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>Hoàn thành</option>
+                    <option value="paused" {% if project.status == 'paused' %}selected{% endif %}>Tạm dừng</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="priority">Ưu tiên</label>
+                <select id="priority" name="priority">
+                    <option value="low" {% if project.priority == 'low' %}selected{% endif %}>Thấp</option>
+                    <option value="medium" {% if project.priority == 'medium' or not project.priority %}selected{% endif %}>Trung bình</option>
+                    <option value="high" {% if project.priority == 'high' %}selected{% endif %}>Cao</option>
+                    <option value="critical" {% if project.priority == 'critical' %}selected{% endif %}>Khẩn cấp</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="deadline">Deadline</label>
+            <input type="date" id="deadline" name="deadline" value="{{ project.deadline|default:'' }}">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-action">💾 {{ action }}</button>
+            <a href="{% if project %}/projects/{{ project.id }}/{% else %}/projects/{% endif %}" class="btn-action secondary">Hủy</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

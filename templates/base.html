@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WebNoiBO — Workspace{% endblock %}</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Logo -->
+        <div class="sidebar-logo">
+            <a href="/dashboard/" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+                <div class="logo-badge">W</div>
+                <div>
+                    <span class="gradient-text" style="font-size:1.1rem;font-weight:700">WebNoiBO</span>
+                    <p style="font-size:11px;color:#475569;margin-top:-2px">Workspace</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-nav">
+            <p class="nav-section-label">MENU CHÍNH</p>
+
+            <a href="/dashboard/" class="sidebar-link {% block nav_dashboard %}{% endblock %}">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span style="flex:1">Dashboard</span>
+                <span class="chev" style="opacity:0.5;font-size:12px">></span>
+            </a>
+
+            <a href="/projects/" class="sidebar-link {% block nav_projects %}{% endblock %}">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                <span style="flex:1">Dự án</span>
+            </a>
+
+            <a href="/members/" class="sidebar-link {% block nav_members %}{% endblock %}">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <span style="flex:1">Thành viên</span>
+            </a>
+
+            <a href="/tasks/" class="sidebar-link {% block nav_tasks %}{% endblock %}">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                <span style="flex:1">Công việc</span>
+            </a>
+
+            <a href="/reports/" class="sidebar-link {% block nav_reports %}{% endblock %}">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span style="flex:1">Báo cáo</span>
+            </a>
+
+            {% if current_user.role == 'admin' or current_user.role == 'leader' %}
+            <a href="/auth/invite/" class="sidebar-link {% block nav_invite %}{% endblock %}">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span style="flex:1">Quản trị</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <!-- User info section -->
+        <div class="sidebar-user">
+            <div class="user-pill">
+                <div class="user-header">
+                    <div class="user-avatar">
+                        {{ current_user.name|first|upper }}
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name-text">{{ current_user.name }}</div>
+                        <span class="badge badge-{{ current_user.role }}">
+                            {% if current_user.role == 'admin' %}Quản trị viên
+                            {% elif current_user.role == 'leader' %}Trưởng nhóm
+                            {% else %}Thành viên{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <a href="/logout/" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;text-decoration:none;margin-top:6px" onmouseover="this.style.color='#fda4af'" onmouseout="this.style.color='#64748b'">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>Đăng xuất</span>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="main-content">
+        <!-- Top bar -->
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:12px">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <div>
+                    <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:1px">{% block page_subtitle %}Tổng quan hoạt động WebNoiBO{% endblock %}</div>
+                </div>
+            </div>
+            <div>{% block topbar_actions %}{% endblock %}</div>
+        </header>
+
+        <!-- Content -->
+        <div class="page-content animate-fade-in">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

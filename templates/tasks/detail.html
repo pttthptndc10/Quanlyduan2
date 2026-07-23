@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} — WebNoiBO{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+{% block page_title %}Chi tiết task{% endblock %}
+
+{% block topbar_actions %}
+<a href="/tasks/{{ task.id }}/edit/" class="btn-action secondary">✏️ Chỉnh sửa</a>
+{% endblock %}
+
+{% block content %}
+<div class="detail-grid">
+    <div class="section-card" style="padding:1.5rem">
+        <h1 style="font-size:1.2rem;color:var(--slate-200);margin-bottom:1rem">{{ task.title }}</h1>
+        <div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1.25rem">
+            <span class="status-badge status-{{ task.status }}">
+                {% if task.status == 'todo' %}Việc cần làm{% elif task.status == 'doing' %}Đang làm{% elif task.status == 'review' %}Review{% elif task.status == 'done' %}Xong{% elif task.status == 'blocked' %}Bị chặn{% else %}Đã hủy{% endif %}
+            </span>
+            <span class="priority-badge priority-{{ task.priority }}">{{ task.priority|upper }}</span>
+        </div>
+        <p style="color:var(--slate-400);line-height:1.7;font-size:.9rem">{{ task.description|default:"Không có mô tả"|linebreaks }}</p>
+        {% if task.progress is not None %}
+        <div style="margin-top:1.25rem">
+            <div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--slate-400);margin-bottom:.4rem"><span>Tiến độ</span><span>{{ task.progress }}%</span></div>
+            <div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+                <div style="height:100%;width:{{ task.progress }}%;background:linear-gradient(90deg,var(--cyan-500),var(--cyan-400));transition:width .3s"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="section-card" style="padding:1.25rem">
+            <h3 style="font-size:.8rem;color:var(--slate-400);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.75rem">Thông tin</h3>
+            <div style="display:flex;flex-direction:column;gap:.6rem;font-size:.875rem">
+                <div style="display:flex;justify-content:space-between">
+                    <span style="color:var(--slate-400)">Dự án</span>
+                    <a href="/projects/{{ task.projects.id }}/" style="color:var(--cyan-400)">{{ task.projects.name|default:"—" }}</a>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                    <span style="color:var(--slate-400)">Người thực hiện</span>
+                    <span>{{ task.profiles.full_name|default:"Chưa giao" }}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                    <span style="color:var(--slate-400)">Deadline</span>
+                    <span>{{ task.deadline|default:"Không có" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>.detail-grid{display:grid;grid-template-columns:2fr 1fr;gap:1.25rem;}@media(max-width:768px){.detail-grid{grid-template-columns:1fr;}}</style>
+{% endblock %}

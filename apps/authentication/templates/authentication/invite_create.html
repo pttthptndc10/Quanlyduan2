@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý lời mời — WebNoiBO</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+</head>
+<body>
+    <div class="auth-bg"></div>
+    <div class="glow-orb glow-1"></div>
+    <div class="glow-orb glow-3"></div>
+
+    <div class="invite-wrap">
+        <!-- Header -->
+        <div class="invite-header">
+            <div class="auth-logo" style="flex-direction:row;gap:12px;margin-bottom:0">
+                <div class="logo-icon" style="width:40px;height:40px;font-size:1.1rem">W</div>
+                <div>
+                    <h1 style="font-size:1.3rem">WebNoiBO</h1>
+                    <p style="margin:0;font-size:.8rem">Quản lý lời mời</p>
+                </div>
+            </div>
+            <div class="user-badge">
+                <span>{{ user_name }}</span>
+                <a href="/logout/" class="logout-link">Đăng xuất</a>
+            </div>
+        </div>
+
+        <!-- Form tạo lời mời -->
+        <div class="invite-card">
+            <h2>Mời thành viên mới</h2>
+
+            {% if success %}
+            <div class="alert-success">
+                ✅ {{ success }}
+                {% if invitation_url %}
+                <br><small style="word-break:break-all;opacity:.8">Link: {{ invitation_url }}</small>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if error %}
+            <div class="alert-error">{{ error }}</div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group">
+                        <label for="inv_email">Gmail</label>
+                        <input type="email" id="inv_email" name="email"
+                            value="{{ form_email|default:'' }}"
+                            placeholder="member@gmail.com" required>
+                        {% if errors.email %}
+                        <span class="field-err">{{ errors.email }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="inv_name">Họ tên</label>
+                        <input type="text" id="inv_name" name="full_name"
+                            value="{{ form_name|default:'' }}"
+                            placeholder="Nguyễn Văn A" required>
+                        {% if errors.full_name %}
+                        <span class="field-err">{{ errors.full_name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="margin-top:.5rem">
+                    Gửi lời mời qua Email
+                </button>
+            </form>
+        </div>
+
+        <!-- Danh sách lời mời -->
+        <div class="invite-card" style="margin-top:1.5rem">
+            <h2>Danh sách lời mời ({{ invitations|length }})</h2>
+            {% if invitations %}
+            <div class="table-wrap">
+                <table class="inv-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Họ tên</th>
+                            <th>Trạng thái</th>
+                            <th>Hết hạn</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invitations %}
+                        <tr>
+                            <td>{{ inv.email }}</td>
+                            <td>{{ inv.full_name }}</td>
+                            <td>
+                                {% if inv.used %}
+                                <span class="badge used">Đã dùng</span>
+                                {% else %}
+                                <span class="badge pending">Đang chờ</span>
+                                {% endif %}
+                            </td>
+                            <td class="exp-date">{{ inv.expires_at|slice:":16"|default:"—" }}</td>
+                            <td>
+                                {% if not inv.used %}
+                                <form method="post" style="margin:0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="revoke">
+                                    <input type="hidden" name="invitation_id" value="{{ inv.id }}">
+                                    <button type="submit" class="btn-revoke"
+                                        onclick="return confirm('Thu hồi lời mời với {{ inv.email }}?')">
+                                        Thu hồi
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:#64748b;text-align:center;padding:2rem">Chưa có lời mời nào.</p>
+            {% endif %}
+        </div>
+
+        <div style="text-align:center;margin-top:1.5rem">
+            <a href="/dashboard/" style="color:#06b6d4;text-decoration:none;font-size:.9rem">
+                ← Quay về Dashboard
+            </a>
+        </div>
+    </div>
+
+    <script src="{% static 'js/auth.js' %}"></script>
+</body>
+</html>
