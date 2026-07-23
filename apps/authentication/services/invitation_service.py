@@ -11,25 +11,22 @@ from apps.authentication.models import Invitation
 
 
 def create_invitation(email: str, full_name: str, invited_by_id: int) -> dict:
-    """Tạo lời mời mới và lưu local."""
+    """Tạo mới hoặc cập nhật lời mời (update_or_create) và gửi email."""
     try:
         now = datetime.now(timezone.utc)
-
-        existing = Invitation.objects.filter(email=email, used=False, expires_at__gt=now).first()
-        if existing:
-            return {'success': False, 'error': f'{email} đã có lời mời đang chờ. Thu hồi trước.'}
-
         token = str(uuid.uuid4())
         expires_at = now + timedelta(hours=24)
         invited_by = User.objects.filter(id=invited_by_id).first() if invited_by_id else None
 
-        invitation = Invitation.objects.create(
+        invitation, _ = Invitation.objects.update_or_create(
             email=email,
-            full_name=full_name,
-            token=token,
-            invited_by=invited_by,
-            used=False,
-            expires_at=expires_at,
+            defaults={
+                'full_name': full_name,
+                'token': token,
+                'invited_by': invited_by,
+                'used': False,
+                'expires_at': expires_at,
+            }
         )
 
         url = f"{settings.APP_BASE_URL}/register/?token={token}"
@@ -95,6 +92,6 @@ def _send_invite_email(email: str, full_name: str, url: str) -> None:
     subject = "[WebNoiBO] Lời mời tham gia hệ thống quản lý"
     message = f"Xin chào {full_name},\n\nBạn được mời tham gia WebNoiBO.\nNhấn vào liên kết sau để đăng ký:\n{url}\n\nTrân trọng,\nWebNoiBO Team"
     try:
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email], fail_silently=True)
+        send_mail(subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'webnoibo@gmail.com'), [email], fail_silently=True)
     except Exception:
         pass
