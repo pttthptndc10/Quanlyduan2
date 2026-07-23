@@ -6,6 +6,7 @@ import json
 import re
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.contrib.auth.models import User
 from apps.authentication.services import auth_service, invitation_service, otp_service
 
 
@@ -71,6 +72,13 @@ def register_view(request):
     token = request.GET.get('token') or request.POST.get('invitation_token', '')
     email = request.POST.get('email', '').strip()
 
+    # Kiểm tra nếu Email đã đăng ký xong rồi
+    if email and User.objects.filter(email=email).exists():
+        return render(request, 'authentication/register.html', {
+            'token_error': f'Tài khoản {email} đã hoàn tất đăng ký thành công rồi! Vui lòng Đăng nhập để sử dụng.',
+            'email': email,
+        })
+
     invitation = None
     if token:
         invitation = invitation_service.get_valid_invitation(token)
@@ -93,7 +101,7 @@ def register_view(request):
 
     if not invitation:
         return render(request, 'authentication/register.html', {
-            'token_error': 'Email của bạn chưa nằm trong danh sách Whitelist được Admin mời.',
+            'token_error': f'Email {email or ""} chưa nằm trong danh sách Whitelist được Admin mời.',
             'email': email, 'full_name': full_name
         })
 
@@ -127,7 +135,7 @@ def register_view(request):
             'error': reg['error'], 'full_name': full_name, 'email': email,
         })
 
-    # Tự đăng nhập sau khi đăng ký
+    # Tự đăng nhập sau khi đăng ký thành công
     login_res = auth_service.login(email, password)
     if login_res['success']:
         u = login_res['user']
@@ -150,6 +158,10 @@ def send_otp_view(request):
     except Exception:
         return JsonResponse({'success': False, 'error': 'Dữ liệu không hợp lệ'}, status=400)
 
+    # Nếu Email đã được tạo tài khoản rồi
+    if email and User.objects.filter(email=email).exists():
+        return JsonResponse({'success': False, 'error': f'Tài khoản {email} đã đăng ký hoàn tất rồi. Vui lòng quay lại Đăng nhập!'}, status=400)
+
     invitation = None
     if token:
         invitation = invitation_service.get_valid_invitation(token)
@@ -157,7 +169,7 @@ def send_otp_view(request):
         invitation = invitation_service.get_valid_invitation_by_email(email)
 
     if not invitation:
-        return JsonResponse({'success': False, 'error': 'Email hoặc lời mời không tồn tại / chưa được Admin cấp phép'}, status=400)
+        return JsonResponse({'success': False, 'error': 'Email chưa được Admin thêm vào danh sách Lời mời Whitelist.'}, status=400)
 
     return JsonResponse(otp_service.create_and_send_otp(invitation['email'], invitation['token']))
 
