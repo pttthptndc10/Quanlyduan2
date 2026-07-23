@@ -61,11 +61,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# SQLite chỉ dùng cho Django session — toàn bộ dữ liệu nghiệp vụ lưu trên Supabase
+import shutil
+
+# Xử lý SQLite trên Vercel Serverless (ổ đĩa Vercel là Read-Only, chỉ /tmp được ghi)
+if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
+    tmp_db = Path('/tmp/db.sqlite3')
+    if not tmp_db.exists() and (BASE_DIR / 'db.sqlite3').exists():
+        try:
+            shutil.copy2(BASE_DIR / 'db.sqlite3', tmp_db)
+        except Exception:
+            pass
+    db_path = tmp_db
+else:
+    db_path = BASE_DIR / 'db.sqlite3'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': db_path,
     }
 }
 
