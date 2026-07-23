@@ -57,6 +57,25 @@ def get_valid_invitation(token: str) -> dict | None:
         return None
 
 
+def get_valid_invitation_by_email(email: str) -> dict | None:
+    """Lấy lời mời hợp lệ theo email."""
+    try:
+        now = datetime.now(timezone.utc)
+        inv = Invitation.objects.filter(email=email, used=False, expires_at__gt=now).first()
+        if not inv:
+            return None
+        return {
+            'id': inv.id,
+            'email': inv.email,
+            'full_name': inv.full_name,
+            'role': inv.role,
+            'token': inv.token,
+            'expires_at': inv.expires_at.isoformat(),
+        }
+    except Exception:
+        return None
+
+
 def get_all_invitations() -> list:
     """Lấy tất cả danh sách lời mời."""
     try:

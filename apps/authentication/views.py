@@ -1,20 +1,19 @@
 """
-Views xác thực: login, logout, register, gửi OTP, quản lý lời mời.
+Authentication Views — Xử lý Đăng nhập, Đăng ký và Quản lý Lời mời.
 """
 
 import json
 import re
-
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from apps.authentication.services import auth_service, invitation_service, otp_service
 
-from .services import auth_service, invitation_service, otp_service
-
-
-# ─── Redirect trang chủ ───────────────────────────────────────────────────────
 
 def root_redirect(request):
-    return redirect('/dashboard/' if request.session.get('user_id') else '/login/')
+    """Điều hướng trang chủ / về /dashboard/ nếu đã đăng nhập hoặc /login/."""
+    if request.session.get('user_id'):
+        return redirect('/dashboard/')
+    return redirect('/login/')
 
 
 # ─── Đăng nhập ───────────────────────────────────────────────────────────────
@@ -23,30 +22,34 @@ def login_view(request):
     if request.session.get('user_id'):
         return redirect('/dashboard/')
 
-    ctx = {}
-    if request.GET.get('error') == 'blocked':
-        ctx['error'] = 'Tài khoản đã bị vô hiệu hóa. Liên hệ admin.'
-
     if request.method == 'GET':
-        return render(request, 'authentication/login.html', ctx)
+        return render(request, 'authentication/login.html')
 
     email = request.POST.get('email', '').strip()
     password = request.POST.get('password', '').strip()
 
+    ctx = {'email': email}
+
     if not email or not password:
-        ctx.update({'error': 'Vui lòng nhập đầy đủ thông tin', 'email': email})
+        ctx['error'] = 'Vui lòng nhập đầy đủ Email và Mật khẩu'
         return render(request, 'authentication/login.html', ctx)
 
-    result = auth_service.login(email, password)
+    result = auth_service.login(email=email, password=password)
 
     if result['success']:
         u = result['user']
         request.session.update({
-            'user_id': u['id'], 'user_email': u['email'],
-            'user_name': u['full_name'], 'user_role': u['role'],
+            'user_id': u['id'],
+            'user_email': u['email'],
+            'user_name': u['full_name'],
+            'user_role': u['role'],
             'access_token': result['access_token'],
         })
-        return redirect(request.GET.get('next', '/dashboard/'))
+
+        next_url = request.GET.get('next')
+        if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+            return redirect(next_url)
+        return redirect('/dashboard/')
 
     ctx.update({'error': result['error'], 'email': email})
     return render(request, 'authentication/login.html', ctx)
@@ -66,33 +69,36 @@ def logout_view(request):
 
 def register_view(request):
     token = request.GET.get('token') or request.POST.get('invitation_token', '')
+    email = request.POST.get('email', '').strip()
 
-    if not token:
-        return render(request, 'authentication/register.html', {
-            'token_error': 'Liên kết mời không hợp lệ. Liên hệ admin.'
-        })
-
-    invitation = invitation_service.get_valid_invitation(token)
-    if not invitation:
-        return render(request, 'authentication/register.html', {
-            'token_error': 'Liên kết mời đã hết hạn hoặc đã được sử dụng.'
-        })
+    invitation = None
+    if token:
+        invitation = invitation_service.get_valid_invitation(token)
+    elif email:
+        invitation = invitation_service.get_valid_invitation_by_email(email)
 
     if request.method == 'GET':
         return render(request, 'authentication/register.html', {
-            'invitation': invitation, 'token': token
+            'invitation': invitation, 'token': token or ''
         })
 
     # POST — xử lý form
     full_name = request.POST.get('full_name', '').strip()
-    email = request.POST.get('email', '').strip()
     password = request.POST.get('password', '').strip()
     confirm = request.POST.get('confirm_password', '').strip()
     otp_code = request.POST.get('otp_code', '').strip()
 
+    if not invitation:
+        invitation = invitation_service.get_valid_invitation_by_email(email)
+
+    if not invitation:
+        return render(request, 'authentication/register.html', {
+            'token_error': 'Email của bạn chưa nằm trong danh sách Whitelist được Admin mời.',
+            'email': email, 'full_name': full_name
+        })
+
+    token = invitation['token']
     errors = {}
-    if email != invitation['email']:
-        errors['email'] = 'Email không khớp với lời mời'
     if not full_name or len(full_name) < 2:
         errors['full_name'] = 'Họ tên tối thiểu 2 ký tự'
     pwd_err = _check_password(password)
@@ -110,7 +116,7 @@ def register_view(request):
     if errors:
         return render(request, 'authentication/register.html', {
             'invitation': invitation, 'token': token,
-            'errors': errors, 'full_name': full_name,
+            'errors': errors, 'full_name': full_name, 'email': email,
         })
 
     reg = auth_service.register(email=email, password=password,
@@ -118,7 +124,7 @@ def register_view(request):
     if not reg['success']:
         return render(request, 'authentication/register.html', {
             'invitation': invitation, 'token': token,
-            'error': reg['error'], 'full_name': full_name,
+            'error': reg['error'], 'full_name': full_name, 'email': email,
         })
 
     # Tự đăng nhập sau khi đăng ký
@@ -128,7 +134,6 @@ def register_view(request):
         request.session.update({
             'user_id': u['id'], 'user_email': u['email'],
             'user_name': u['full_name'], 'user_role': u['role'],
-            'access_token': login_res['access_token'],
         })
     return redirect('/dashboard/')
 
@@ -141,14 +146,20 @@ def send_otp_view(request):
     try:
         data = json.loads(request.body)
         token = data.get('token', '').strip()
+        email = data.get('email', '').strip()
     except Exception:
         return JsonResponse({'success': False, 'error': 'Dữ liệu không hợp lệ'}, status=400)
 
-    invitation = invitation_service.get_valid_invitation(token)
-    if not invitation:
-        return JsonResponse({'success': False, 'error': 'Lời mời không còn hợp lệ'}, status=400)
+    invitation = None
+    if token:
+        invitation = invitation_service.get_valid_invitation(token)
+    elif email:
+        invitation = invitation_service.get_valid_invitation_by_email(email)
 
-    return JsonResponse(otp_service.create_and_send_otp(invitation['email'], token))
+    if not invitation:
+        return JsonResponse({'success': False, 'error': 'Email hoặc lời mời không tồn tại / chưa được Admin cấp phép'}, status=400)
+
+    return JsonResponse(otp_service.create_and_send_otp(invitation['email'], invitation['token']))
 
 
 # ─── Admin: Quản lý lời mời ──────────────────────────────────────────────────
