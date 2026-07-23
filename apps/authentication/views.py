@@ -55,7 +55,10 @@ def login_view(request):
 # ─── Đăng xuất ───────────────────────────────────────────────────────────────
 
 def logout_view(request):
-    request.session.flush()
+    try:
+        request.session.flush()
+    except Exception:
+        pass
     return redirect('/login/')
 
 
